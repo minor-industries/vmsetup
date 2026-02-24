@@ -14,6 +14,7 @@ import (
 type Opts struct {
 	MemoryGB int  `short:"m" long:"memory" description:"Memory in GB" default:"2"`
 	CPUs     int  `short:"c" long:"cpus" description:"Number of vCPUs" default:"2"`
+	DiskGB   int  `short:"d" long:"disk" description:"Disk GB" default:"20"`
 	Spice    bool `long:"spice" description:"Enable SPICE graphics"`
 	Args     struct {
 		Name string `positional-arg-name:"NAME" required:"yes"`
@@ -22,6 +23,7 @@ type Opts struct {
 
 func makeSeedISO(
 	hostname string,
+	username string,
 	outfile string,
 	sshKeys []string,
 ) error {
@@ -32,7 +34,7 @@ func makeSeedISO(
 
 		Users: []User{
 			{
-				Name:              "jsu",
+				Name:              username,
 				Sudo:              "ALL=(ALL) NOPASSWD:ALL",
 				Groups:            []string{"sudo"},
 				Shell:             "/bin/bash",
@@ -92,7 +94,8 @@ const (
 
 func run(
 	vmName string,
-	memGB, cpus int,
+	username string,
+	memGB, cpus, diskGB int,
 	spice bool,
 	sshKeys []string,
 ) error {
@@ -138,14 +141,14 @@ func run(
 		"-F",
 		"qcow2",
 		overlay,
-		"20G",
+		fmt.Sprintf("%dG", diskGB),
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("qemu-img: %w: %s", err, string(out))
 	}
 
-	if err := makeSeedISO(vmName, seedISO, sshKeys); err != nil {
+	if err := makeSeedISO(vmName, username, seedISO, sshKeys); err != nil {
 		return fmt.Errorf("make seed iso: %w", err)
 	}
 
@@ -179,7 +182,7 @@ func run(
 	return nil
 }
 
-func Run(sshKeys []string) error {
+func Run(sshKeys []string, username string) error {
 	var opts Opts
 
 	p := flags.NewParser(&opts, flags.Default)
@@ -188,7 +191,15 @@ func Run(sshKeys []string) error {
 		return fmt.Errorf("parse options: %w", err)
 	}
 
-	if err := run(opts.Args.Name, opts.MemoryGB, opts.CPUs, opts.Spice, sshKeys); err != nil {
+	if err := run(
+		opts.Args.Name,
+		username,
+		opts.MemoryGB,
+		opts.CPUs,
+		opts.DiskGB,
+		opts.Spice,
+		sshKeys,
+	); err != nil {
 		return fmt.Errorf("run: %w", err)
 	}
 
