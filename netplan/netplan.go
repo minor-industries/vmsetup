@@ -29,7 +29,9 @@ type OutNetwork struct {
 	Bridges   map[string]OutBridge   `yaml:"bridges"`
 }
 
-type OutEthernet struct{}
+type OutEthernet struct {
+	DHCP4 bool `yaml:"dhcp4"`
+}
 
 type OutBridge struct {
 	Interfaces []string `yaml:"interfaces"`
@@ -55,24 +57,28 @@ func ToBridgeStrict(inYAML []byte) ([]byte, error) {
 	if len(in.Network.Ethernets) != 1 {
 		return nil, fmt.Errorf("network.ethernets must contain exactly one interface (got %d)", len(in.Network.Ethernets))
 	}
-	eno, ok := in.Network.Ethernets["eno1"]
-	if !ok {
-		return nil, fmt.Errorf(`network.ethernets must contain only "eno1"`)
+
+	var ifname string
+	var eth InEthernet
+	for k, v := range in.Network.Ethernets {
+		ifname, eth = k, v
+		break
 	}
-	if eno.DHCP4 == nil {
-		return nil, fmt.Errorf(`network.ethernets.eno1.dhcp4 is required`)
+
+	if eth.DHCP4 == nil {
+		return nil, fmt.Errorf("network.ethernets.%s.dhcp4 is required", ifname)
 	}
 
 	out := OutFile{
 		Network: OutNetwork{
 			Version: in.Network.Version,
 			Ethernets: map[string]OutEthernet{
-				"eno1": {},
+				ifname: {DHCP4: false},
 			},
 			Bridges: map[string]OutBridge{
 				"br0": {
-					Interfaces: []string{"eno1"},
-					DHCP4:      *eno.DHCP4,
+					Interfaces: []string{ifname},
+					DHCP4:      *eth.DHCP4,
 				},
 			},
 		},
