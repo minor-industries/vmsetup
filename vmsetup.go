@@ -76,8 +76,8 @@ func makeSeedISO(
 }
 
 const (
-	img          = "https://cloud-images.ubuntu.com/noble/20260108/noble-server-cloudimg-amd64.img"
-	expectedHash = "00786c0936a7dd91a6b07941ca60bb56652975e0e72f9dacf73c887ada420966"
+	img          = "https://cloud-images.ubuntu.com/noble/20260225/noble-server-cloudimg-amd64.img"
+	expectedHash = "7aa6d9f5e8a3a55c7445b138d31a73d1187871211b2b7da9da2e1a6cbf169b21"
 )
 
 func run(v *Opts) error {
