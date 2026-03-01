@@ -7,19 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/jessevdk/go-flags"
 )
-
-type Opts struct {
-	MemoryGB int  `short:"m" long:"memory" description:"Memory in GB" default:"2"`
-	CPUs     int  `short:"c" long:"cpus" description:"Number of vCPUs" default:"2"`
-	DiskGB   int  `short:"d" long:"disk" description:"Disk GB" default:"20"`
-	Spice    bool `long:"spice" description:"Enable SPICE graphics"`
-	Args     struct {
-		Name string `positional-arg-name:"NAME" required:"yes"`
-	} `positional-args:"yes"`
-}
 
 func makeSeedISO(
 	hostname string,
@@ -88,17 +76,19 @@ func makeSeedISO(
 }
 
 const (
-	img          = "https://cloud-images.ubuntu.com/noble/20260108/noble-server-cloudimg-amd64.img"
-	expectedHash = "00786c0936a7dd91a6b07941ca60bb56652975e0e72f9dacf73c887ada420966"
+	img          = "https://cloud-images.ubuntu.com/noble/20260225/noble-server-cloudimg-amd64.img"
+	expectedHash = "7aa6d9f5e8a3a55c7445b138d31a73d1187871211b2b7da9da2e1a6cbf169b21"
 )
 
-func run(
-	vmName string,
-	username string,
-	memGB, cpus, diskGB int,
-	spice bool,
-	sshKeys []string,
-) error {
+func run(v *Opts) error {
+	vmName := v.Args.Name
+	username := v.Username
+	memGB := v.MemoryGB
+	cpus := v.CPUs
+	diskGB := v.DiskGB
+	spice := v.Spice
+	sshKeys := v.SSHKeys
+
 	base := filepath.Base(img)
 
 	backingFile := "/var/lib/libvirt/images/" + base
@@ -179,29 +169,5 @@ func run(
 	}
 
 	fmt.Println(strings.Join(args, " "))
-	return nil
-}
-
-func Run(sshKeys []string, username string) error {
-	var opts Opts
-
-	p := flags.NewParser(&opts, flags.Default)
-
-	if _, err := p.Parse(); err != nil {
-		return fmt.Errorf("parse options: %w", err)
-	}
-
-	if err := run(
-		opts.Args.Name,
-		username,
-		opts.MemoryGB,
-		opts.CPUs,
-		opts.DiskGB,
-		opts.Spice,
-		sshKeys,
-	); err != nil {
-		return fmt.Errorf("run: %w", err)
-	}
-
 	return nil
 }
