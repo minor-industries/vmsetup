@@ -75,28 +75,20 @@ func makeSeedISO(
 	return nil
 }
 
-const (
-	img          = "https://cloud-images.ubuntu.com/noble/20260225/noble-server-cloudimg-amd64.img"
-	expectedHash = "7aa6d9f5e8a3a55c7445b138d31a73d1187871211b2b7da9da2e1a6cbf169b21"
-)
-
 func run(v *Opts) error {
+	base := filepath.Base(v.CloudImageURL)
 	vmName := v.Args.Name
-	username := v.Username
-	memGB := v.MemoryGB
-	cpus := v.CPUs
-	diskGB := v.DiskGB
-	spice := v.Spice
-	sshKeys := v.SSHKeys
-
-	base := filepath.Base(img)
 
 	backingFile := "/var/lib/libvirt/images/" + base
 	_, err := os.Stat(backingFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Printf("%s does not exist, downloading\n", backingFile)
-			if err := download(context.Background(), img, backingFile); err != nil {
+			if err := download(
+				context.Background(),
+				v.CloudImageURL,
+				backingFile,
+			); err != nil {
 				return fmt.Errorf("download: %w", err)
 			}
 		}
@@ -107,8 +99,8 @@ func run(v *Opts) error {
 		return fmt.Errorf("hash: %w", err)
 	}
 
-	if hash != expectedHash {
-		return fmt.Errorf("expected hash %s, got %s", expectedHash, hash)
+	if hash != v.CloudConfigHash {
+		return fmt.Errorf("expected hash %s, got %s", v.CloudConfigHash, hash)
 	}
 
 	overlay := fmt.Sprintf("/var/lib/libvirt/images/%s.qcow2", vmName)
@@ -131,14 +123,14 @@ func run(v *Opts) error {
 		"-F",
 		"qcow2",
 		overlay,
-		fmt.Sprintf("%dG", diskGB),
+		fmt.Sprintf("%dG", v.DiskGB),
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("qemu-img: %w: %s", err, string(out))
 	}
 
-	if err := makeSeedISO(vmName, username, seedISO, sshKeys); err != nil {
+	if err := makeSeedISO(vmName, v.Username, seedISO, v.SSHKeys); err != nil {
 		return fmt.Errorf("make seed iso: %w", err)
 	}
 
@@ -146,12 +138,12 @@ func run(v *Opts) error {
 		return fmt.Errorf("chown: %w", err)
 	}
 
-	memMB := memGB * 1024
+	memMB := v.MemoryGB * 1024
 	args := []string{
 		"virt-install",
 		"--name", vmName,
 		"--memory", fmt.Sprint(memMB),
-		"--vcpus", fmt.Sprint(cpus),
+		"--vcpus", fmt.Sprint(v.CPUs),
 		"--disk", fmt.Sprintf("path=%s,format=qcow2", overlay),
 		"--disk", fmt.Sprintf("path=%s,device=cdrom", seedISO),
 		"--os-variant", "ubuntu24.04",
@@ -159,7 +151,7 @@ func run(v *Opts) error {
 		"--import",
 	}
 
-	if spice {
+	if v.Spice {
 		args = append(args,
 			"--graphics", "spice,listen=127.0.0.1",
 			"--video", "qxl",

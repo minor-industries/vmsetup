@@ -34,8 +34,11 @@ type Opts struct {
 	DiskGB   int  `short:"d" long:"disk" default:"20"`
 	Spice    bool `long:"spice"`
 
-	Username string   `long:"username" hidden:"true"`
-	SSHKeys  []string `long:"ssh-key" hidden:"true"`
+	Username string   `long:"username"`
+	SSHKeys  []string `long:"ssh-key"`
+
+	CloudImageURL   string `long:"cloud-image-url"`
+	CloudConfigHash string `long:"cloud-config-hash"`
 
 	Args struct {
 		Name string `positional-arg-name:"NAME" required:"yes"`
@@ -51,10 +54,20 @@ type Root struct {
 	VM   Opts     `command:"vm" description:"create vm"`
 }
 
-func Run(sshKeys []string, username string) error {
+type Config struct {
+	SshKeys  []string
+	Username string
+
+	CloudImageURL  string
+	CloudImageHash string
+}
+
+func Run(cfg *Config) error {
 	root := &Root{}
-	root.VM.Username = username
-	root.VM.SSHKeys = append([]string(nil), sshKeys...)
+	root.VM.Username = cfg.Username
+	root.VM.SSHKeys = cfg.SshKeys
+	root.VM.CloudImageURL = cfg.CloudImageURL
+	root.VM.CloudConfigHash = cfg.CloudImageHash
 
 	p := flags.NewParser(root, flags.Default)
 
